@@ -3,10 +3,11 @@ import { TopGGEventManagerName } from "./constants";
 import { Webhook } from "@top-gg/sdk";
 import { AutoPoster as autoPoster } from "topgg-autoposter"
 import { PosterOptions } from "topgg-autoposter/dist/typings";
-import express from "express"
 import { TopGGCommandManager } from "./structures/TopGGCommandManager";
 import { ITopGGEvents } from "./structures/TopGGEventHandlers";
 import { TypedEmitter } from "tiny-typed-emitter";
+import { app } from "@tryforge/webserver";
+import express from "express"
 
 export interface IForgeTopGGOptions {
     post?: PosterOptions
@@ -26,7 +27,6 @@ export class ForgeTopGG extends ForgeExtension {
     version = "1.0.0"
 
     private readonly webhook: Webhook
-    private readonly app = express()
 
     private client!: ForgeClient
     private emitter = new TypedEmitter<TransformEvents<ITopGGEvents>>()
@@ -37,9 +37,10 @@ export class ForgeTopGG extends ForgeExtension {
         private readonly options: IForgeTopGGOptions
     ) {
         super()
+        const server = app(options.port ?? 3000)
         this.webhook = new Webhook(options.auth)
-        this.app.use(express.json())
-        this.app.post("/dblwebhook", this.webhook.listener(vote => void this.emitter.emit("voted", vote)))
+        server.use(express.json())
+        server.post("/dblwebhook", this.webhook.listener(vote => void this.emitter.emit("voted", vote)))
     }
 
     init(client: ForgeClient): void {
@@ -57,7 +58,5 @@ export class ForgeTopGG extends ForgeExtension {
 
         if (this.options.events?.length)
             this.client.events.load(TopGGEventManagerName, this.options.events)
-
-        this.app.listen(this.options.port ?? 3000)
     }
 }
